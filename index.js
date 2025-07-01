@@ -28,22 +28,17 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
 
-        const shiftsCollection = client.db("zapShiftDB").collection("parcelCollection");
-     
+        const parcelsCollection = client.db("zapShift").collection("parcels");
+
         //  post data for parcel 
 
         app.post('/parcels', async (req, res) => {
-            try {
-                const parcel = req.body;
-                const result = await parcelsCollection.insertOne(parcel);
-                res.status(201).json(result);
-            } catch (error) {
-                res.status(500).json({ error: 'Failed to add parcel' });
-            }
+            const parcel = req.body;
+            console.log(parcel)
+            const result = await parcelsCollection.insertOne(parcel);
+            res.send(result)
         });
-
         //  get data for parcel 
-
         app.get('/parcels', async (req, res) => {
             try {
                 const parcels = await parcelsCollection.find().toArray();
