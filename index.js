@@ -65,6 +65,21 @@ async function run() {
             }
         });
 
+        // Find a parcel by id
+        app.get('/parcels/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+                const parcel = await parcelsCollection.findOne({ _id: new ObjectId(id) });
+                if (parcel) {
+                    res.status(200).json(parcel);
+                } else {
+                    res.status(404).json({ error: 'Parcel not found' });
+                }
+            } catch (error) {
+                res.status(500).json({ error: 'Failed to fetch parcel' });
+            }
+        });
+
 
         // Delete a parcel by id
         app.delete('/parcels/:id', async (req, res) => {
@@ -81,6 +96,8 @@ async function run() {
                 res.status(500).json({ error: 'Failed to delete parcel' });
             }
         });
+
+
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
