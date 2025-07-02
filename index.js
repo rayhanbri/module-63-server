@@ -34,10 +34,27 @@ async function run() {
 
         app.post('/parcels', async (req, res) => {
             const parcel = req.body;
-            console.log(parcel)
+            // console.log(parcel)
             const result = await parcelsCollection.insertOne(parcel);
             res.send(result)
         });
+
+        // Get parcels by email query, newest first; if no email, return all
+        app.get('/parcels', async (req, res) => {
+            try {
+                const email = req.query.email;
+                const filter = email ? { created_by: email } : {};
+                const parcels = await parcelsCollection
+                    .find(filter)
+                    .sort({ _id: -1 }) // newest first
+                    .toArray();
+                res.status(200).json(parcels);
+            } catch (error) {
+                res.status(500).json({ error: 'Failed to fetch parcels' });
+            }
+        });
+
+
         //  get data for parcel 
         app.get('/parcels', async (req, res) => {
             try {
