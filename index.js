@@ -4,7 +4,11 @@ const cors = require('cors');
 const PORT = process.env.PORT || 3000;
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-
+// eita dot env pore dhibho karon eita k dot env the rakbho amra 
+//13 eita copy kore client side e jaw (/create-payment-intent),go to payment form 
+const stripe = require('stripe')(process.env.Payment_Gateway_Key);
+// 8. er pos tader website login kore  publishable key niye asbho and secret key niye asbho 
+// 9.er por client er payment.jsx e jaw 
 // Middleware to parse JSON
 app.use(express.json());
 app.use(cors());
@@ -29,6 +33,8 @@ async function run() {
         await client.connect();
 
         const parcelsCollection = client.db("zapShift").collection("parcels");
+        // Add this after your other collection declarations
+        const paymentsCollection = client.db("zapShift").collection("payments");
 
         //  post data for parcel 
 
@@ -94,6 +100,77 @@ async function run() {
                 }
             } catch (error) {
                 res.status(500).json({ error: 'Failed to delete parcel' });
+            }
+        });
+
+        //5 ai generated code from stripe 
+        //6. stripe backend e intall kore naw .
+        //7. er por stripe k require korte hobe 
+        app.post('/create-payment-intent', async (req, res) => {
+            // 16 i am here
+            const amountInCents = req.body.amountInCents;
+            // console.log(amountInCents)
+            const paymentIntent = await stripe.paymentIntents.create({
+                // 17 ei ta change kore dilam 
+                //18 ekhon console log korle arekta data asbhe and go to client payment form 
+                amount: amountInCents, // amount in cents
+                currency: 'usd',
+                payment_method_types: ['card'],
+            });
+
+            res.json({ clientSecret: paymentIntent.client_secret });
+        });
+
+
+        // 21 making payment history with ai 
+        // API to mark paymentStatus as 'paid' and save payment history
+        //api for getting all the data 
+        //22 go to client side 
+        app.post('/payments', async (req, res) => {
+            try {
+                const { parcelId, amount, transactionId, email, paymentMethod } = req.body;
+
+                // 1. Update the parcel's paymentStatus to 'paid'
+                const parcelUpdateResult = await parcelsCollection.updateOne(
+                    { _id: new ObjectId(parcelId) },
+                    { $set: { paymentStatus: 'paid' } }
+                );
+
+                // 2. Save payment history
+                const paymentEntry = {
+                    parcelId: new ObjectId(parcelId),
+                    amount,
+                    transactionId,
+                    email,
+                    paymentMethod,
+                    paid_at: new Date().toISOString(),
+                    paid_At: new Date()
+                };
+                const paymentResult = await paymentsCollection.insertOne(paymentEntry);
+
+                res.status(200).json({
+                    message: 'Payment status updated and payment history saved',
+                    parcelUpdateResult,
+                    paymentResult
+                });
+            } catch (error) {
+                res.status(500).json({ error: 'Failed to update payment status or save payment history' });
+            }
+        });
+
+
+        // Get payment history by user (latest first)
+        app.get('/payments', async (req, res) => {
+            try {
+                const email = req.query.email;
+                const filter = email ? { email } : {};
+                const payments = await paymentsCollection
+                    .find(filter)
+                    .sort({ paid_At: -1 }) // latest first
+                    .toArray();
+                res.status(200).json(payments);
+            } catch (error) {
+                res.status(500).json({ error: 'Failed to fetch payment history' });
             }
         });
 
