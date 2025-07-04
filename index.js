@@ -20,7 +20,7 @@ const admin = require("firebase-admin");
 const serviceAccount = require("./firebase_key.json");
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+    credential: admin.credential.cert(serviceAccount)
 });
 
 
@@ -48,6 +48,7 @@ async function run() {
         // tracking collection 
         const trackingCollection = client.db("zapShift").collection("track");
         const userCollection = client.db("zapShift").collection("users");
+        const ridersCollection = client.db("zapShift").collection("riders");
 
         // custom middleware 
         async function verifyToken(req, res, next) {
@@ -73,7 +74,7 @@ async function run() {
                 return res.status(403).send({ message: 'Forbidden access', error: error.message });
             }
 
-        
+
 
         }
 
@@ -103,7 +104,7 @@ async function run() {
 
 
         //  get data for parcel 
-        app.get('/parcels',verifyToken, async (req, res) => {
+        app.get('/parcels', verifyToken, async (req, res) => {
 
             try {
                 const parcels = await parcelsCollection.find().toArray();
@@ -212,8 +213,8 @@ async function run() {
             try {
                 const email = req.query.email;
                 // console.log(req.decoded)
-                if(req.decoded.email !== email){
-                    return res.status(403).send({message : 'forbidden access' })
+                if (req.decoded.email !== email) {
+                    return res.status(403).send({ message: 'forbidden access' })
                 }
                 const filter = email ? { email } : {};
                 const payments = await paymentsCollection
@@ -268,6 +269,57 @@ async function run() {
                 res.send(result);
             } catch (error) {
                 res.status(500).json({ error: 'Failed to check user' });
+            }
+        });
+
+
+
+        // ---------------------Rider---------------
+        //  post data for rider 
+        app.post('/riders', async (req, res) => {
+            const rider = req.body;
+            // console.log(parcel)
+            const result = await ridersCollection.insertOne(rider);
+            res.send(result)
+        });
+
+        // get rider who are pending  
+        // / Get all riders whose status is 'pending'
+        app.get('/pendingRiders', async (req, res) => {
+            try {
+                // Optional: check admin role (if role-based access is implemented)
+                // if (req.decoded.role !== 'admin') {
+                //     return res.status(403).send({ message: 'Forbidden access' });
+                // }
+
+                const pendingRiders = await ridersCollection
+                    .find({ status: 'pending' })
+                    .sort({ appliedAt: -1 }) // latest applied first
+                    .toArray();
+
+                res.status(200).json(pendingRiders);
+            } catch (error) {
+                res.status(500).json({ error: 'Failed to fetch pending riders' });
+            }
+        });
+
+        // patch request for updating rider 
+        app.patch('/riders/:id', async (req, res) => {
+            const id = req.params.id;
+            const { status } = req.body;
+            try {
+                const result = await ridersCollection.updateOne(
+                    { _id: new ObjectId(id) },
+                    { $set: { status: 'approved' } }
+                );
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).json({ message: 'Rider not found' });
+                }
+                res.json({ message: 'Rider approved successfully' });
+            } catch (error) {
+                console.error('Error approving rider:', error);
+                res.status(500).json({ message: 'Internal server error' });
             }
         });
 
