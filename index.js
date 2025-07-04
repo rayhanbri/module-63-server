@@ -35,7 +35,9 @@ async function run() {
         const parcelsCollection = client.db("zapShift").collection("parcels");
         // Add this after your other collection declarations
         const paymentsCollection = client.db("zapShift").collection("payments");
-
+        // tracking collection 
+        const trackingCollection = client.db("zapShift").collection("track");
+        const userCollection = client.db("zapShift").collection("users");
         //  post data for parcel 
 
         app.post('/parcels', async (req, res) => {
@@ -171,6 +173,51 @@ async function run() {
                 res.status(200).json(payments);
             } catch (error) {
                 res.status(500).json({ error: 'Failed to fetch payment history' });
+            }
+        });
+
+
+        // tracking id post 
+        app.post('/track', async (req, res) => {
+            try {
+                const { parcelId, status, message, updated_by = "", tracking_id } = req.body;
+
+                const log = {
+                    parcelId,
+                    status,
+                    message,
+                    updated_by,
+                    tracking_id,
+                    updatedAt: new Date()
+                };
+
+                const result = await trackingCollection.insertOne(log);
+                res.send(result)
+
+
+            } catch (error) {
+                res.status(500).json({ error: 'Failed to update parcel status' });
+            }
+        });
+
+
+
+        // ---------------- user ---------------
+        app.post('/users', async (req, res) => {
+            try {
+                const { email } = req.body;
+                if (!email) {
+                    return res.status(400).json({ message: 'Email is required' });
+                }
+                const existingUser = await userCollection.findOne({ email });
+                if (existingUser) {
+                    return res.status(200).json({ message: 'User already exists' });
+                }
+                const user = req.body;
+                const result = await userCollection.insertOne(user);
+                res.send(result);
+            } catch (error) {
+                res.status(500).json({ error: 'Failed to check user' });
             }
         });
 
