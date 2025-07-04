@@ -13,6 +13,16 @@ const stripe = require('stripe')(process.env.Payment_Gateway_Key);
 app.use(express.json());
 app.use(cors());
 
+const admin = require("firebase-admin");
+
+//9 path ser kore dhibho 
+//10 verify the toke 
+const serviceAccount = require("./firebase_key.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
 
 
 
@@ -38,8 +48,37 @@ async function run() {
         // tracking collection 
         const trackingCollection = client.db("zapShift").collection("track");
         const userCollection = client.db("zapShift").collection("users");
-        //  post data for parcel 
 
+        // custom middleware 
+        async function verifyToken(req, res, next) {
+            const authHeader = req.headers.authorization;
+            console.log('heade in middle ware ', authHeader)
+            //5 use this as middleware in
+            if (!authHeader) {
+                return res.status(401).send({ message: 'unauthorized access' })
+            }
+            const token = authHeader.split(' ')[1]
+            if (!token) {
+                return res.status(401).send({ message: 'unauthorized access' })
+            }
+
+            // 6.now verify the token go to firebase // service center
+            // 7.install firebase admin 
+            //10
+            try {
+                const decodedToken = await admin.auth().verifyIdToken(token);
+                req.decoded = decodedToken;
+                next();
+            } catch (error) {
+                return res.status(403).send({ message: 'Forbidden access', error: error.message });
+            }
+
+        
+
+        }
+
+
+        //  post data for parcel 
         app.post('/parcels', async (req, res) => {
             const parcel = req.body;
             // console.log(parcel)
@@ -64,7 +103,8 @@ async function run() {
 
 
         //  get data for parcel 
-        app.get('/parcels', async (req, res) => {
+        app.get('/parcels',verifyToken, async (req, res) => {
+
             try {
                 const parcels = await parcelsCollection.find().toArray();
                 res.status(200).json(parcels);
@@ -72,6 +112,8 @@ async function run() {
                 res.status(500).json({ error: 'Failed to fetch parcels' });
             }
         });
+
+
 
         // Find a parcel by id
         app.get('/parcels/:id', async (req, res) => {
@@ -108,6 +150,7 @@ async function run() {
         //5 ai generated code from stripe 
         //6. stripe backend e intall kore naw .
         //7. er por stripe k require korte hobe 
+        //8. er por web site theke generate private key tar ota file theke ekhane niye asbho 
         app.post('/create-payment-intent', async (req, res) => {
             // 16 i am here
             const amountInCents = req.body.amountInCents;
@@ -162,9 +205,16 @@ async function run() {
 
 
         // Get payment history by user (latest first)
-        app.get('/payments', async (req, res) => {
+        app.get('/payments', verifyToken, async (req, res) => {
+            //check it out 3 jwt
+            // console.log(req.headers.authorization)
+            //4 crate a custom middle ware 
             try {
                 const email = req.query.email;
+                // console.log(req.decoded)
+                if(req.decoded.email !== email){
+                    return res.status(403).send({message : 'forbidden access' })
+                }
                 const filter = email ? { email } : {};
                 const payments = await paymentsCollection
                     .find(filter)
