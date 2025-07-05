@@ -306,12 +306,24 @@ async function run() {
         // patch request for updating rider 
         app.patch('/riders/:id', async (req, res) => {
             const id = req.params.id;
-            const { status } = req.body;
+            const { status, email } = req.body;
+            // console.log(req.body)
             try {
                 const result = await ridersCollection.updateOne(
                     { _id: new ObjectId(id) },
                     { $set: { status: 'approved' } }
                 );
+
+                if (status === 'approved') {
+                    const queryEmail = { email };
+                    const userUpdatedDoc = {
+                        $set: {
+                            role: 'rider',
+                        }
+                    }
+                    const resultUser = await userCollection.updateOne(queryEmail, userUpdatedDoc)
+                    console.log(resultUser.modifiedCount)
+                }
 
                 if (result.matchedCount === 0) {
                     return res.status(404).json({ message: 'Rider not found' });
@@ -320,6 +332,21 @@ async function run() {
             } catch (error) {
                 console.error('Error approving rider:', error);
                 res.status(500).json({ message: 'Internal server error' });
+            }
+        });
+
+        // ✅ API to get all approved riders
+        app.get('/riders/active', async (req, res) => {
+            try {
+                // Find all riders with status 'approved'
+                const approvedRiders = await ridersCollection.find({ status: 'approved' }).toArray();
+
+                // Send the result to the client
+                res.send(approvedRiders);
+            } catch (error) {
+                // Log and send error response if something goes wrong
+                console.error('Failed to fetch approved riders:', error);
+                res.status(500).send({ error: 'Internal server error' });
             }
         });
 
