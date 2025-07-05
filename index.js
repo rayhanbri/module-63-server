@@ -76,6 +76,7 @@ async function run() {
         }
 
         // ✅ Admin API to search users by email using regex (returns up to 10 users)
+        // check it on local host 
         app.get('/admin/search', async (req, res) => {
             const emailQuery = req.query.email;
 
@@ -104,6 +105,30 @@ async function run() {
             }
         });
 
+        // ✅ API to make a user an admin
+        app.patch('/make-admin', async (req, res) => {
+            const { email } = req.body;
+
+            if (!email) {
+                return res.status(400).json({ message: 'Email is required in body' });
+            }
+
+            try {
+                const result = await userCollection.updateOne(
+                    { email },
+                    { $set: { role: 'admin' } }
+                );
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).json({ message: 'User not found' });
+                }
+
+                res.json({ message: 'User promoted to admin successfully' });
+            } catch (error) {
+                console.error('Error making user admin:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        });
 
 
         //  post data for parcel 
