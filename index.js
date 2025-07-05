@@ -73,10 +73,37 @@ async function run() {
             } catch (error) {
                 return res.status(403).send({ message: 'Forbidden access', error: error.message });
             }
-
-
-
         }
+
+        // ✅ Admin API to search users by email using regex (returns up to 10 users)
+        app.get('/admin/search', async (req, res) => {
+            const emailQuery = req.query.email;
+
+            if (!emailQuery) {
+                return res.status(400).json({ message: 'Email is required in query' });
+            }
+
+            try {
+                // Create a case-insensitive regex based on the email query
+                const regex = new RegExp(emailQuery, 'i'); // 'i' = case-insensitive
+
+                // Find up to 10 matching users
+                const users = await userCollection
+                    .find({ email: regex })
+                    .limit(10)
+                    .toArray();
+
+                if (users.length === 0) {
+                    return res.status(404).json({ message: 'No users found' });
+                }
+
+                res.send(users);
+            } catch (error) {
+                console.error('Error searching users by email:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        });
+
 
 
         //  post data for parcel 
@@ -349,9 +376,6 @@ async function run() {
                 res.status(500).send({ error: 'Internal server error' });
             }
         });
-
-
-
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
