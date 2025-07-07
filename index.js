@@ -51,7 +51,7 @@ async function run() {
         const ridersCollection = client.db("zapShift").collection("riders");
 
         // custom middleware 
-        async function verifyToken(req, res, next) {
+        const verifyToken=async(req, res, next)=> {
             const authHeader = req.headers.authorization;
             console.log('heade in middle ware ', authHeader)
             //5 use this as middleware in
@@ -144,10 +144,22 @@ async function run() {
         // Get parcels by email query, newest first; if no email, return all
         app.get('/parcels', async (req, res) => {
             try {
-                const email = req.query.email;
-                const filter = email ? { created_by: email } : {};
+                const {email,deliveryStatus,paymentStatus} = req.query;
+               const query = {};
+                if(email){
+                      query.created_by = email;
+                }
+                if(paymentStatus){
+                    query.paymentStatus = paymentStatus
+                }
+                if(deliveryStatus){
+                    query.deliveryStatus = deliveryStatus
+                }
+
+          console.log(query)
+                // const filter = email ? { created_by: email } : {};
                 const parcels = await parcelsCollection
-                    .find(filter)
+                    .find(query)
                     .sort({ _id: -1 }) // newest first
                     .toArray();
                 res.status(200).json(parcels);
@@ -364,7 +376,7 @@ async function run() {
 
         // get rider who are pending  
         // / Get all riders whose status is 'pending'
-        app.get('/pendingRiders', async (req, res) => {
+        app.get('/pendingRiders',verifyToken,verifyAdmin, async (req, res) => {
             try {
                 // Optional: check admin role (if role-based access is implemented)
                 // if (req.decoded.role !== 'admin') {
@@ -383,7 +395,7 @@ async function run() {
         });
 
         // patch request for updating rider 
-        app.patch('/riders/:id', async (req, res) => {
+        app.patch('/riders/:id', verifyToken,verifyAdmin,async (req, res) => {
             const id = req.params.id;
             const { status, email } = req.body;
             // console.log(req.body)
@@ -415,7 +427,7 @@ async function run() {
         });
 
         // ✅ API to get all approved riders
-        app.get('/riders/active', async (req, res) => {
+        app.get('/riders/active',verifyToken,verifyAdmin, async (req, res) => {
             try {
                 // Find all riders with status 'approved'
                 const approvedRiders = await ridersCollection.find({ status: 'approved' }).toArray();
