@@ -75,6 +75,19 @@ async function run() {
             }
         }
 
+        // verify  admin 
+        // eta obossoi token er niche use korte  hobe  
+        const verifyAdmin =async (req,res,next) =>{
+            const email = req.decoded.email;
+            const query = {email};
+            const user = await userCollection.findOne(query);
+
+            if(!user || user.role !== 'admin'){
+               return res.status(403).send({message : 'forbidden access'})
+            }
+            next();
+        }
+
         // Backend: Get users by partial email
         app.get('/admin/search', async (req, res) => {
             try {
@@ -94,7 +107,7 @@ async function run() {
         });
 
         // ✅ API to make a user an admin
-        app.patch('/make-admin', async (req, res) => {
+        app.patch('/make-admin',verifyToken,verifyAdmin, async (req, res) => {
             const { email, role } = req.body;
 
             if (!email || !role) {
