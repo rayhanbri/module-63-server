@@ -314,6 +314,31 @@ async function run() {
         });
 
 
+        // get user with emai 
+        // ✅ API to get full user info by email
+        app.get('/users/:email', async (req, res) => {
+            const email = req.params.email;
+
+            if (!email) {
+                return res.status(400).json({ message: 'Email is required' });
+            }
+
+            try {
+                // Find full user document by email
+                const user = await userCollection.findOne({ email });
+
+                if (!user) {
+                    return res.status(404).json({ message: 'User not found' });
+                }
+
+                res.send(user);
+            } catch (error) {
+                console.error('Error fetching user:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        });
+
+
 
         // ---------------------Rider---------------
         //  post data for rider 
