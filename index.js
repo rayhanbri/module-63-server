@@ -75,60 +75,49 @@ async function run() {
             }
         }
 
-        // ✅ Admin API to search users by email using regex (returns up to 10 users)
-        // check it on local host 
+        // Backend: Get users by partial email
         app.get('/admin/search', async (req, res) => {
-            const emailQuery = req.query.email;
-
-            if (!emailQuery) {
-                return res.status(400).json({ message: 'Email is required in query' });
-            }
-
             try {
-                // Create a case-insensitive regex based on the email query
-                const regex = new RegExp(emailQuery, 'i'); // 'i' = case-insensitive
+                const { email } = req.query;
+                if (!email) return res.status(400).json({ message: 'Email query is required' });
 
-                // Find up to 10 matching users
-                const users = await userCollection
-                    .find({ email: regex })
-                    .limit(10)
+                const result = await userCollection
+                    .find({ email: { $regex: email, $options: 'i' } }) // case-insensitive partial match
+                    .limit(10) // Optional: limit result for performance
                     .toArray();
 
-                if (users.length === 0) {
-                    return res.status(404).json({ message: 'No users found' });
-                }
-
-                res.send(users);
+                res.send(result);
             } catch (error) {
-                console.error('Error searching users by email:', error);
-                res.status(500).json({ message: 'Internal server error' });
+                console.error('Search error:', error);
+                res.status(500).json({ message: 'Server error' });
             }
         });
 
         // ✅ API to make a user an admin
         app.patch('/make-admin', async (req, res) => {
-            const { email } = req.body;
+            const { email, role } = req.body;
 
-            if (!email) {
-                return res.status(400).json({ message: 'Email is required in body' });
+            if (!email || !role) {
+                return res.status(400).json({ message: 'Email and role are required' });
             }
 
             try {
                 const result = await userCollection.updateOne(
                     { email },
-                    { $set: { role: 'admin' } }
+                    { $set: { role } }
                 );
 
                 if (result.matchedCount === 0) {
                     return res.status(404).json({ message: 'User not found' });
                 }
 
-                res.json({ message: 'User promoted to admin successfully' });
+                res.json({ message: `User role updated to ${role}` });
             } catch (error) {
-                console.error('Error making user admin:', error);
+                console.error('Error updating user role:', error);
                 res.status(500).json({ message: 'Internal server error' });
             }
         });
+
 
 
         //  post data for parcel 
