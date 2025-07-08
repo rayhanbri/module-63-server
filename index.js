@@ -53,7 +53,7 @@ async function run() {
         // custom middleware 
         const verifyToken=async(req, res, next)=> {
             const authHeader = req.headers.authorization;
-            console.log('heade in middle ware ', authHeader)
+            // console.log('heade in middle ware ', authHeader)
             //5 use this as middleware in
             if (!authHeader) {
                 return res.status(401).send({ message: 'unauthorized access' })
@@ -156,7 +156,7 @@ async function run() {
                     query.deliveryStatus = deliveryStatus
                 }
 
-          console.log(query)
+        //   console.log(query)
                 // const filter = email ? { created_by: email } : {};
                 const parcels = await parcelsCollection
                     .find(query)
@@ -202,7 +202,7 @@ async function run() {
         app.delete('/parcels/:id', async (req, res) => {
             try {
                 const id = req.params.id;
-                console.log(id)
+                // console.log(id)
                 const result = await parcelsCollection.deleteOne({ _id: new ObjectId(id) });
                 if (result.deletedCount === 1) {
                     res.status(200).json({ message: 'Parcel deleted successfully' });
@@ -413,7 +413,7 @@ async function run() {
                         }
                     }
                     const resultUser = await userCollection.updateOne(queryEmail, userUpdatedDoc)
-                    console.log(resultUser.modifiedCount)
+                    // console.log(resultUser.modifiedCount)
                 }
 
                 if (result.matchedCount === 0) {
@@ -429,8 +429,15 @@ async function run() {
         // ✅ API to get all approved riders
         app.get('/riders/active',verifyToken,verifyAdmin, async (req, res) => {
             try {
+                const { district } = req.query;
+                console.log(district)
+                const query = { status: 'approved' };
+                if(district){
+                    query.district = district
+                }
+                console.log(query)
                 // Find all riders with status 'approved'
-                const approvedRiders = await ridersCollection.find({ status: 'approved' }).toArray();
+                const approvedRiders = await ridersCollection.find(query).toArray();
 
                 // Send the result to the client
                 res.send(approvedRiders);
