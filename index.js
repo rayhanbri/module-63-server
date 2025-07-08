@@ -51,7 +51,7 @@ async function run() {
         const ridersCollection = client.db("zapShift").collection("riders");
 
         // custom middleware 
-        const verifyToken=async(req, res, next)=> {
+        const verifyToken = async (req, res, next) => {
             const authHeader = req.headers.authorization;
             // console.log('heade in middle ware ', authHeader)
             //5 use this as middleware in
@@ -77,13 +77,13 @@ async function run() {
 
         // verify  admin 
         // eta obossoi token er niche use korte  hobe  
-        const verifyAdmin =async (req,res,next) =>{
+        const verifyAdmin = async (req, res, next) => {
             const email = req.decoded.email;
-            const query = {email};
+            const query = { email };
             const user = await userCollection.findOne(query);
 
-            if(!user || user.role !== 'admin'){
-               return res.status(403).send({message : 'forbidden access'})
+            if (!user || user.role !== 'admin') {
+                return res.status(403).send({ message: 'forbidden access' })
             }
             next();
         }
@@ -107,7 +107,7 @@ async function run() {
         });
 
         // ✅ API to make a user an admin
-        app.patch('/make-admin',verifyToken,verifyAdmin, async (req, res) => {
+        app.patch('/make-admin', verifyToken, verifyAdmin, async (req, res) => {
             const { email, role } = req.body;
 
             if (!email || !role) {
@@ -144,19 +144,19 @@ async function run() {
         // Get parcels by email query, newest first; if no email, return all
         app.get('/parcels', async (req, res) => {
             try {
-                const {email,deliveryStatus,paymentStatus} = req.query;
-               const query = {};
-                if(email){
-                      query.created_by = email;
+                const { email, deliveryStatus, paymentStatus } = req.query;
+                const query = {};
+                if (email) {
+                    query.created_by = email;
                 }
-                if(paymentStatus){
+                if (paymentStatus) {
                     query.paymentStatus = paymentStatus
                 }
-                if(deliveryStatus){
+                if (deliveryStatus) {
                     query.deliveryStatus = deliveryStatus
                 }
 
-        //   console.log(query)
+                //   console.log(query)
                 // const filter = email ? { created_by: email } : {};
                 const parcels = await parcelsCollection
                     .find(query)
@@ -376,7 +376,7 @@ async function run() {
 
         // get rider who are pending  
         // / Get all riders whose status is 'pending'
-        app.get('/pendingRiders',verifyToken,verifyAdmin, async (req, res) => {
+        app.get('/pendingRiders', verifyToken, verifyAdmin, async (req, res) => {
             try {
                 // Optional: check admin role (if role-based access is implemented)
                 // if (req.decoded.role !== 'admin') {
@@ -395,7 +395,7 @@ async function run() {
         });
 
         // patch request for updating rider 
-        app.patch('/riders/:id', verifyToken,verifyAdmin,async (req, res) => {
+        app.patch('/riders/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const { status, email } = req.body;
             // console.log(req.body)
@@ -427,15 +427,15 @@ async function run() {
         });
 
         // ✅ API to get all approved riders
-        app.get('/riders/active',verifyToken,verifyAdmin, async (req, res) => {
+        app.get('/riders/active', verifyToken, verifyAdmin, async (req, res) => {
             try {
                 const { district } = req.query;
-                console.log(district)
+                // console.log(district)
                 const query = { status: 'approved' };
-                if(district){
+                if (district) {
                     query.district = district
                 }
-                console.log(query)
+                // console.log(query)
                 // Find all riders with status 'approved'
                 const approvedRiders = await ridersCollection.find(query).toArray();
 
@@ -447,6 +447,76 @@ async function run() {
                 res.status(500).send({ error: 'Internal server error' });
             }
         });
+
+
+        // Assigning Rider and Parcel 
+        // Assign a rider to a parcel and update deliveryStatus
+        app.patch('/parcels/assign/:id', async (req, res) => {
+            const parcelId = req.params.id;
+            const { riderId, riderEmail, deliveryStatus } = req.body;
+
+            try {
+                const filter = { _id: new ObjectId(parcelId) };
+                const update = {
+                    $set: {
+                        riderId: new ObjectId(riderId),
+                        riderEmail,
+                        deliveryStatus: deliveryStatus || 'in_transit',
+                        assignedAt: new Date()
+                    }
+                };
+
+                const result = await parcelsCollection.updateOne(filter, update);
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).json({ message: 'Parcel not found' });
+                }
+
+                res.send({ message: 'Parcel updated with rider', modifiedCount: result.modifiedCount });
+            } catch (error) {
+                console.error('Error assigning rider:', error);
+                res.status(500).json({ message: 'Failed to assign rider' });
+            }
+        });
+
+
+
+        // Update rider work status
+        app.patch('/riders/status/:id', async (req, res) => {
+            const riderId = req.params.id;
+            const { workStatus } = req.body;
+
+            try {
+                const filter = { _id: new ObjectId(riderId) };
+                const update = {
+                    $set: {
+                        workStatus: workStatus || 'available',
+                        updatedAt: new Date()
+                    }
+                };
+
+                const result = await ridersCollection.updateOne(filter, update);
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).json({ message: 'Rider not found' });
+                }
+
+                res.send({ message: 'Rider work status updated', modifiedCount: result.modifiedCount });
+            } catch (error) {
+                console.error('Error updating rider status:', error);
+                res.status(500).json({ message: 'Failed to update rider status' });
+            }
+        });
+
+
+
+
+
+
+
+
+
+
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
